@@ -66,6 +66,11 @@ def imsave(images, size, path):
   image = np.squeeze(merge(images, size))
   return scipy.misc.imsave(path, image)
 
+def onesave(images, path):
+  for i, temp in enumerate(images):
+    temp = np.dot(temp[..., :3], [0.2989, 0.587, 0.114])
+    scipy.misc.imsave(path+str(i)+'.png', temp)
+
 def center_crop(x, crop_h, crop_w,
                 resize_h=64, resize_w=64):
   if crop_w is None:
@@ -170,21 +175,28 @@ def make_gif(images, fname, duration=2, true_image=False):
   clip.write_gif(fname, fps = len(images) / duration)
 
 def visualize(sess, dcgan, config, option):
-  image_frame_dim = int(math.ceil(config.batch_size**.5))
-
+  image_frame_dim = int(math.ceil(config.batch_size ** .5))
   if option == 0:
-    z_sample = np.random.uniform(-0.5, 0.5, size=(config.batch_size, dcgan.z_dim))
-    samples = sess.run(dcgan.sampler, feed_dict={dcgan.z: z_sample})
-    save_images(samples, [image_frame_dim, image_frame_dim], './samples/test_%s.png' % strftime("%Y-%m-%d-%H-%M-%S", gmtime()))
+    # z_sample = np.random.normal(size=(config.batch_size, dcgan.z_dim)) #0.3
+    z_sample = np.random.uniform(-0.3, 0.3, size=(config.batch_size, dcgan.z_dim))
+    for j in range(11):
+      y_one_hot = np.zeros((config.batch_size,11))
+      y_one_hot[np.arange(config.batch_size), j] = 1
+      samples = sess.run(dcgan.sampler, feed_dict={dcgan.z: z_sample, dcgan.y: y_one_hot})
+      onesave(samples, './samples/one/test_%s_' % j)
+    print(" [*] Finish")
+
   elif option == 1:  # z 벡터 변화
     values = np.arange(0, 1, 1./config.batch_size)
     for idx in xrange(dcgan.z_dim):
       print(" [*] %d" % idx)
-      z_sample = np.random.uniform(-1, 1, size=(config.batch_size , dcgan.z_dim))
+      # z_sample = np.random.normal(size=(config.batch_size , dcgan.z_dim))
+      z_sample = np.random.uniform(-1, 1, size=(config.batch_size, dcgan.z_dim))
       for kdx, z in enumerate(z_sample):
         z[idx] = values[kdx]
 
       # y = np.random.choice(10, config.batch_size)
+
       y = np.array([i % 11 for i in range(config.batch_size)])
       y_one_hot = np.zeros((config.batch_size, 11))
       y_one_hot[np.arange(config.batch_size), y] = 1
@@ -194,28 +206,30 @@ def visualize(sess, dcgan, config, option):
 
       save_images(samples, [image_frame_dim, image_frame_dim], './samples/test_arange_%s.png' % (idx))
   elif option == 2:  # z 일정
+
     values = np.arange(0, 1, 1./config.batch_size)
     for idx in [random.randint(0, dcgan.z_dim - 1) for _ in xrange(dcgan.z_dim)]:
       print(" [*] %d" % idx)
-      z = np.random.uniform(-0.2, 0.2, size=(dcgan.z_dim))
+      # z = np.random.normal(size=(dcgan.z_dim)) # -0.2 0.2
+      z_sample = np.random.uniform(-0.2, 0.2, size=(config.batch_size, dcgan.z_dim))
       z_sample = np.tile(z, (config.batch_size, 1))
       #z_sample = np.zeros([config.batch_size, dcgan.z_dim])
       for kdx, z in enumerate(z_sample):
         z[idx] = values[kdx]
-      y= 4
-      # y = np.random.choice(11, config.batch_size)
+
+      # y = np.random.choice(64, config.batch_size)
       y = np.array([i % 11 for i in range(config.batch_size)])
+      # y=4
       y_one_hot = np.zeros((config.batch_size, 11))
       y_one_hot[np.arange(config.batch_size), y] = 1
-
       samples = sess.run(dcgan.sampler, feed_dict={dcgan.z: z_sample, dcgan.y: y_one_hot})
 
-      try:
-        make_gif(samples, './samples/test_gif_%s.gif' % (idx))
-      except:
+      # try:
+      #   make_gif(samples, './samples/test_gif_%s.gif' % (idx))
+      # except:
       #   save_images(samples, [image_frame_dim, image_frame_dim], './samples/test_%s.png' % strftime("%Y-%m-%d-%H-%M-%S", gmtime()))
-        save_images(samples, [image_frame_dim, image_frame_dim], './samples/test_%s.png' % strftime("%Y-%m-%d-%H-%M-%S", gmtime()))  # 2개
-      # save_images(samples, [image_frame_dim, image_frame_dim], './samples/test_%s_' % strftime("%Y-%m-%d-%H-%M-%S", gmtime()) + str(idx) + '.png'  )  # 여러개
+        # save_images(samples, [image_frame_dim, image_frame_dim], './samples/test_%s.png' % strftime("%Y-%m-%d-%H-%M-%S", gmtime()))  # 2개
+      save_images(samples, [image_frame_dim, image_frame_dim], './samples/test_%s_' % strftime("%Y-%m-%d-%H-%M-%S", gmtime()) + str(idx) + '.png'  )  # 여러개
   elif option == 3:
     values = np.arange(0, 1, 1./config.batch_size)
     for idx in xrange(dcgan.z_dim):
@@ -224,7 +238,11 @@ def visualize(sess, dcgan, config, option):
       for kdx, z in enumerate(z_sample):
         z[idx] = values[kdx]
 
-      samples = sess.run(dcgan.sampler, feed_dict={dcgan.z: z_sample})
+      y = np.array([i % 11 for i in range(config.batch_size)])
+      y = 4
+      y_one_hot = np.zeros((config.batch_size, 11))
+      y_one_hot[np.arange(config.batch_size), y] = 1
+      samples = sess.run(dcgan.sampler, feed_dict={dcgan.z: z_sample, dcgan.y: y_one_hot})
       make_gif(samples, './samples/test_gif_%s.gif' % (idx))
   elif option == 4:
     image_set = []
@@ -233,16 +251,18 @@ def visualize(sess, dcgan, config, option):
     for idx in xrange(dcgan.z_dim):
       print(" [*] %d" % idx)
       z_sample = np.zeros([config.batch_size, dcgan.z_dim])
-      for kdx, z in enumerate(z_sample): z[idx] = values[kdx]
+      for kdx, z in enumerate(z_sample):
+        z[idx] = values[kdx]
 
-      image_set.append(sess.run(dcgan.sampler, feed_dict={dcgan.z: z_sample}))
+      y = np.array([i % 11 for i in range(config.batch_size)])
+      y_one_hot = np.zeros((config.batch_size, 11))
+      y_one_hot[np.arange(config.batch_size), y] = 1
+      image_set.append(sess.run(dcgan.sampler, feed_dict={dcgan.z: z_sample, dcgan.y:y_one_hot}))
       make_gif(image_set[-1], './samples/test_gif_%s.gif' % (idx))
 
     new_image_set = [merge(np.array([images[idx] for images in image_set]), [10, 10]) \
         for idx in range(64) + range(63, -1, -1)]
     make_gif(new_image_set, './samples/test_gif_merged.gif', duration=8)
-
-
 
 def image_manifold_size(num_images):
   manifold_h = int(np.floor(np.sqrt(num_images)))
